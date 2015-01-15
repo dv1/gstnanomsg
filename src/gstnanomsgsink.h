@@ -53,6 +53,9 @@ struct _GstNanomsgSink
 	 * bidirectional, which makes little sense in GStreamer elements)*/
 	int protocol;
 
+	/* Whether or not to only use IPv4 (and no IPv6) addresses */
+	gboolean ipv4only;
+
 	/* main_fd is the SP socket descriptor of the main sender socket
 	 * ctrl_fds are the pipe sockets used for controlling the receiver loop
 	 * ctrl_fds[0] is the read end, ctrl_fds[1] the write end

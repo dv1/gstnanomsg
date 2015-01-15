@@ -57,6 +57,9 @@ struct _GstNanomsgSrc
 	 * bidirectional, which makes little sense in GStreamer elements)*/
 	int protocol;
 
+	/* Whether or not to only use IPv4 (and no IPv6) addresses */
+	gboolean ipv4only;
+
 	/* the subscription topic to use with the PUBSUB protocol; unused with others */
 	gchar *subscription_topic;
 

@@ -40,12 +40,14 @@ enum
 {
 	PROP_0,
 	PROP_URI,
-	PROP_PROTOCOL
+	PROP_PROTOCOL,
+	PROP_IPV4ONLY
 };
 
 
 #define DEFAULT_URI NULL
 #define DEFAULT_PROTOCOL NN_PUSH
+#define DEFAULT_IPV4ONLY TRUE
 
 
 #define LOCK_SINK_MUTEX(OBJ)    g_mutex_lock(&(((GstNanomsgSink*)(OBJ))->mutex))
@@ -161,6 +163,17 @@ static void gst_nanomsgsink_class_init(GstNanomsgSinkClass *klass)
 			G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS
 		)
 	);
+	g_object_class_install_property(
+	        object_class,
+	        PROP_IPV4ONLY,
+	        g_param_spec_boolean(
+	                "ipv4only",
+	                "IPv4Only",
+	                "Whether or not to use only IPv4 addresses (as opposed to both IPv4 and IPv6 ones)",
+	                DEFAULT_IPV4ONLY,
+	                G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS
+	        )
+	);
 
 	gst_element_class_set_static_metadata(
 		element_class,
@@ -176,6 +189,7 @@ static void gst_nanomsgsink_init(GstNanomsgSink *nanomsgsink)
 {
 	nanomsgsink->uri = NULL;
 	nanomsgsink->protocol = DEFAULT_PROTOCOL;
+	nanomsgsink->ipv4only = DEFAULT_IPV4ONLY;
 
 	nanomsgsink->main_fd = -1;
 	nanomsgsink->watch_fd = -1;
@@ -232,6 +246,15 @@ static void gst_nanomsgsink_set_property(GObject *object, guint prop_id, GValue 
 			break;
 		}
 
+		case PROP_IPV4ONLY:
+		{
+			LOCK_SINK_MUTEX(nanomsgsink);
+			nanomsgsink->ipv4only = g_value_get_boolean(value);
+			UNLOCK_SINK_MUTEX(nanomsgsink);
+
+			break;
+		}
+
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
 			break;
@@ -253,6 +276,12 @@ static void gst_nanomsgsink_get_property(GObject *object, guint prop_id, GValue 
 		case PROP_PROTOCOL:
 			LOCK_SINK_MUTEX(nanomsgsink);
 			g_value_set_enum(value, nanomsgsink->protocol);
+			UNLOCK_SINK_MUTEX(nanomsgsink);
+			break;
+
+		case PROP_IPV4ONLY:
+			LOCK_SINK_MUTEX(nanomsgsink);
+			g_value_set_boolean(value, nanomsgsink->ipv4only);
 			UNLOCK_SINK_MUTEX(nanomsgsink);
 			break;
 
@@ -516,6 +545,18 @@ static gboolean gst_nanomsgsink_init_sockets(GstNanomsgSink *nanomsgsink)
 	{
 		GST_ERROR_OBJECT(nanomsgsink, "could not retrieve watch file descriptor: %s", strerror(errno));
 		goto failure;
+	}
+
+
+	/* Misc settings */
+
+	{
+		int ipv4only = nanomsgsink->ipv4only ? 1 : 0;
+		if (G_UNLIKELY(nn_setsockopt(nanomsgsink->main_fd, NN_SOL_SOCKET, NN_IPV4ONLY, (char const*)&(ipv4only), sizeof(ipv4only))) < 0)
+		{
+			GST_ERROR_OBJECT(nanomsgsink, "could not configure IPV4ONLY flag: %s", strerror(errno));
+			goto failure;
+		}
 	}
 
 

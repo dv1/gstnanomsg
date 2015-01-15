@@ -42,6 +42,7 @@ enum
 	PROP_URI,
 	PROP_TIMEOUT,
 	PROP_PROTOCOL,
+	PROP_IPV4ONLY,
 	PROP_SUBSCRIPTION_TOPIC
 };
 
@@ -49,6 +50,7 @@ enum
 #define DEFAULT_URI NULL
 #define DEFAULT_TIMEOUT 0
 #define DEFAULT_PROTOCOL NN_PULL
+#define DEFAULT_IPV4ONLY TRUE
 #define DEFAULT_SUBSCRIPTION_TOPIC NULL
 
 
@@ -180,6 +182,17 @@ static void gst_nanomsgsrc_class_init(GstNanomsgSrcClass *klass)
 	);
 	g_object_class_install_property(
 	        object_class,
+	        PROP_IPV4ONLY,
+	        g_param_spec_boolean(
+	                "ipv4only",
+	                "IPv4Only",
+	                "Whether or not to use only IPv4 addresses (as opposed to both IPv4 and IPv6 ones)",
+	                DEFAULT_IPV4ONLY,
+	                G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS
+	        )
+	);
+	g_object_class_install_property(
+	        object_class,
 	        PROP_SUBSCRIPTION_TOPIC,
 	        g_param_spec_string(
 	                "subscription-topic",
@@ -205,6 +218,7 @@ static void gst_nanomsgsrc_init(GstNanomsgSrc *nanomsgsrc)
 	nanomsgsrc->uri = DEFAULT_URI;
 	nanomsgsrc->timeout = DEFAULT_TIMEOUT;
 	nanomsgsrc->protocol = DEFAULT_PROTOCOL;
+	nanomsgsrc->ipv4only = DEFAULT_IPV4ONLY;
 	nanomsgsrc->subscription_topic = DEFAULT_SUBSCRIPTION_TOPIC;
 
 	nanomsgsrc->main_fd = -1;
@@ -277,6 +291,15 @@ static void gst_nanomsgsrc_set_property(GObject *object, guint prop_id, GValue c
 			break;
 		}
 
+		case PROP_IPV4ONLY:
+		{
+			LOCK_SRC_MUTEX(nanomsgsrc);
+			nanomsgsrc->ipv4only = g_value_get_boolean(value);
+			UNLOCK_SRC_MUTEX(nanomsgsrc);
+
+			break;
+		}
+
 		case PROP_SUBSCRIPTION_TOPIC:
 		{
 			LOCK_SRC_MUTEX(nanomsgsrc);
@@ -328,6 +351,12 @@ static void gst_nanomsgsrc_get_property(GObject *object, guint prop_id, GValue *
 		case PROP_PROTOCOL:
 			LOCK_SRC_MUTEX(nanomsgsrc);
 			g_value_set_enum(value, nanomsgsrc->protocol);
+			UNLOCK_SRC_MUTEX(nanomsgsrc);
+			break;
+
+		case PROP_IPV4ONLY:
+			LOCK_SRC_MUTEX(nanomsgsrc);
+			g_value_set_boolean(value, nanomsgsrc->ipv4only);
 			UNLOCK_SRC_MUTEX(nanomsgsrc);
 			break;
 
@@ -639,6 +668,18 @@ static gboolean gst_nanomsgsrc_init_sockets(GstNanomsgSrc *nanomsgsrc)
 	{
 		GST_ERROR_OBJECT(nanomsgsrc, "could not retrieve watch file descriptor: %s", strerror(errno));
 		goto failure;
+	}
+
+
+	/* Misc settings */
+
+	{
+		int ipv4only = nanomsgsrc->ipv4only ? 1 : 0;
+		if (G_UNLIKELY(nn_setsockopt(nanomsgsrc->main_fd, NN_SOL_SOCKET, NN_IPV4ONLY, (char const*)&(ipv4only), sizeof(ipv4only))) < 0)
+		{
+			GST_ERROR_OBJECT(nanomsgsrc, "could not configure IPV4ONLY flag: %s", strerror(errno));
+			goto failure;
+		}
 	}
 
 
