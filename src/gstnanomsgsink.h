@@ -45,7 +45,7 @@ struct _GstNanomsgSink
 {
 	GstBaseSink parent;
 
-	/* nanomsg socket URI (with the "nanomsg" prefix) */
+	/* nanomsg socket URI (with the prefix) */
 	gchar *uri;
 	
 	/* nanomsg scalability protocol to use

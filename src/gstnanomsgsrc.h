@@ -45,7 +45,7 @@ struct _GstNanomsgSrc
 {
 	GstPushSrc parent;
 
-	/* nanomsg socket URI (with the "nanomsg" prefix) */
+	/* nanomsg socket URI (with the prefix) */
 	gchar *uri;
 
 	/* timeout interval for poll(); if this interval runs out, a message is

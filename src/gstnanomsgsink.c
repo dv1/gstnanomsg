@@ -463,7 +463,7 @@ static gboolean gst_nanomsgsink_init_sockets(GstNanomsgSink *nanomsgsink)
 		return FALSE;
 	}
 	
-	/* Get the actual nanomsg URI, without the "nanomsg" prefix */
+	/* Get the actual nanomsg URI, without the prefix */
 	actual_uri = PROTOCOLSTR_REMOVE_PREFIX(nanomsgsink->uri);
 	GST_DEBUG_OBJECT(nanomsgsink, "URI without the prefix: %s", actual_uri);
 

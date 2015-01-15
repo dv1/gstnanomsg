@@ -585,7 +585,7 @@ static gboolean gst_nanomsgsrc_init_sockets(GstNanomsgSrc *nanomsgsrc)
 		return FALSE;
 	}
 	
-	/* Get the actual nanomsg URI, without the "nanomsg" prefix */
+	/* Get the actual nanomsg URI, without the prefix */
 	actual_uri = PROTOCOLSTR_REMOVE_PREFIX(nanomsgsrc->uri);
 	GST_DEBUG_OBJECT(nanomsgsrc, "URI without the prefix: %s", actual_uri);
 
