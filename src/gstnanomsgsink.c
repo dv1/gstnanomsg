@@ -482,7 +482,7 @@ static gboolean gst_nanomsgsink_init_sockets(GstNanomsgSink *nanomsgsink)
 	/* The actual SP socket setup */
 
 	/* Create a SP socket, using the currently configured protocol */
-	if (G_UNLIKELY((nanomsgsink->main_fd = nn_socket(AF_SP, nanomsgsink->protocol)) < 0))
+	if (G_UNLIKELY((nanomsgsink->main_fd = nn_socket(AF_SP, nanomsgsink->protocol))) < 0)
 	{
 		GST_ERROR_OBJECT(nanomsgsink, "could not create SP socket: %s", strerror(errno));
 		goto failure;

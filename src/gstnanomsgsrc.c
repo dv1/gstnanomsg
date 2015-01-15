@@ -635,7 +635,7 @@ static gboolean gst_nanomsgsrc_init_sockets(GstNanomsgSrc *nanomsgsrc)
 	}
 
 	/* Retrieve the watch FD for use with poll() */
-	if (G_UNLIKELY(nn_getsockopt(nanomsgsrc->main_fd, NN_SOL_SOCKET, NN_RCVFD, (char*)&(nanomsgsrc->watch_fd), &watch_fd_size) < 0))
+	if (G_UNLIKELY(nn_getsockopt(nanomsgsrc->main_fd, NN_SOL_SOCKET, NN_RCVFD, (char*)&(nanomsgsrc->watch_fd), &watch_fd_size)) < 0)
 	{
 		GST_ERROR_OBJECT(nanomsgsrc, "could not retrieve watch file descriptor: %s", strerror(errno));
 		goto failure;
