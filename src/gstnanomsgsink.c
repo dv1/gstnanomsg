@@ -488,7 +488,7 @@ static gboolean gst_nanomsgsink_init_sockets(GstNanomsgSink *nanomsgsink)
 	/* Check for the URI scheme prefix */
 	if (!g_str_has_prefix(nanomsgsink->uri, PROTOCOL_PREFIX))
 	{
-		GST_ELEMENT_ERROR(nanomsgsink, RESOURCE, NOT_FOUND, ("Expected URI scheme to start with the prefix \"" PROTOCOL_PREFIX "\""), ("URI: %s", nanomsgsink->uri));
+		GST_ELEMENT_ERROR(nanomsgsink, RESOURCE, NOT_FOUND, ("URI starts with the wrong prefix"), ("URI: %s , expected prefix: \"" PROTOCOL_PREFIX "\"", nanomsgsink->uri));
 		return FALSE;
 	}
 	

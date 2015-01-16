@@ -25,9 +25,10 @@
 #include "gstnanomsgsink.h"
 
 
-/* to GStreamer, a protocol schema always starts with "nanomsg"
- * example: nanomsgtcp://127.0.0.1:56000
- * this avoids conflicts with other URI handlers
+/* to GStreamer, a protocol schema always starts with the
+ * prefix defined by PROTOCOL_PREFIX
+ * example: nmsgtcp://127.0.0.1:56000
+ * (this avoids conflicts with other URI handlers)
  * the prefix is removed before it is passed to nanomsg
  * the protocol list always ends with NULL, to fulfill the requirements
  * of the URI handler get_protocols() function */
