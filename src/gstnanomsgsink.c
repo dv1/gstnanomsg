@@ -17,6 +17,33 @@
  *   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+/**
+ * SECTION: element-nanomsgsink
+ *
+ * nanomsgsink is a sink that sends data via a nanomsg SP socket.
+ * It can be combined with rtp payload encoders to implement RTP streaming.
+ *
+ * <refsect2>
+ * <title>Examples</title>
+ * |[
+ * gst-launch-1.0 audiotestsrc ! nanomsgsink uri=nmsgipc:///tmp/pipeline.ipc
+ * ]| Send data to a nanomsg sink using an IPC connection
+ * |[
+ * gst-launch-1.0 nanomsgsrc uri=nmsgipc:///tmp/pipeline.ipc ! fakesink
+ * ]| Receive data from the pipeline above
+ *
+ * |[
+ * gst-launch-1.0 audiotestsrc ! rtpgstpay ! nanomsgsink uri=nmsgtcp:///192.168.0.1:54001 protocol=pub
+ * ]| Send audio stream packets enveloped in the GST RTP payloader and transmit it over TCP, using the publish/subscribe protocol (the publisher side)
+ * |[
+ * gst-launch-1.0 nanomsgsrc do-timestamp=false uri=nmsgipc:///tmp/192.168.0.1:54001 protocol=sub ! "application/x-rtp, encoding-name=X-GST" ! rtpgstdepay ! autoaudiosink
+ * ]| Receive data from the pipeline above using the publish/subscribe protocol (the subscriber side), depayload it (disabling the incoming timestamps since these are uninteresting here), and play
+ *
+ * Note in the example above that the subscriber pipeline can be started more than once, on different threads, processes, or hosts (see the nanomsg documentation for details about publish/subscribe)
+ *
+ * </refsect2>
+ */
+
 
 
 #include <errno.h>
@@ -220,9 +247,11 @@ static void gst_nanomsgsink_set_property(GObject *object, guint prop_id, GValue 
 	{
 		case PROP_URI:
 		{
+			gchar const *new_uri;
+
 			LOCK_SINK_MUTEX(nanomsgsink);
 
-			gchar const *new_uri = g_value_get_string(value);
+			new_uri = g_value_get_string(value);
 			if (new_uri != NULL)
 			{
 				g_free(nanomsgsink->uri);

@@ -109,6 +109,7 @@ def build(bld):
 		includes = ['.', '../..'],
 		uselib = ['GSTREAMER', 'GSTREAMER_BASE', 'NANOMSG'],
 		target = 'gstnanomsg',
+		defines = 'HAVE_CONFIG_H',
 		source = bld.path.ant_glob('src/*.c'),
 		install_path = bld.env['PLUGIN_INSTALL_PATH']
 	)

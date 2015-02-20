@@ -1,21 +1,48 @@
 /*
-*   GStreamer source element using the nanomsg library
-*   Copyright (C) 2015 Carlos Rafael Giani
-*
-*   This library is free software; you can redistribute it and/or
-*   modify it under the terms of the GNU Lesser General Public
-*   License as published by the Free Software Foundation; either
-*   version 2.1 of the License, or (at your option) any later version.
-*
-*   This library is distributed in the hope that it will be useful,
-*   but WITHOUT ANY WARRANTY; without even the implied warranty of
-*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-*   Lesser General Public License for more details.
-*
-*   You should have received a copy of the GNU Lesser General Public
-*   License along with this library; if not, write to the Free Software
-*   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ *   GStreamer source element using the nanomsg library
+ *   Copyright (C) 2015 Carlos Rafael Giani
+ *
+ *   This library is free software; you can redistribute it and/or
+ *   modify it under the terms of the GNU Lesser General Public
+ *   License as published by the Free Software Foundation; either
+ *   version 2.1 of the License, or (at your option) any later version.
+ *
+ *   This library is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *   Lesser General Public License for more details.
+ *
+ *   You should have received a copy of the GNU Lesser General Public
+ *   License along with this library; if not, write to the Free Software
+ *   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+
+/**
+ * SECTION: element-nanomsgsink
+ *
+ * nanomsgsink is a sink that sends data via a nanomsg SP socket.
+ * It can be combined with rtp payload encoders to implement RTP streaming.
+ *
+ * <refsect2>
+ * <title>Examples</title>
+ * |[
+ * gst-launch-1.0 audiotestsrc ! nanomsgsink uri=nmsgipc:///tmp/pipeline.ipc
+ * ]| Send data to a nanomsg sink using an IPC connection
+ * |[
+ * gst-launch-1.0 nanomsgsrc uri=nmsgipc:///tmp/pipeline.ipc ! fakesink
+ * ]| Receive data from the pipeline above
+ *
+ * |[
+ * gst-launch-1.0 audiotestsrc ! rtpgstpay ! nanomsgsink uri=nmsgtcp:///192.168.0.1:54001 protocol=pub
+ * ]| Send audio stream packets enveloped in the GST RTP payloader and transmit it over TCP, using the publish/subscribe protocol (the publisher side)
+ * |[
+ * gst-launch-1.0 nanomsgsrc do-timestamp=false uri=nmsgipc:///tmp/192.168.0.1:54001 protocol=sub ! "application/x-rtp, encoding-name=X-GST" ! rtpgstdepay ! autoaudiosink
+ * ]| Receive data from the pipeline above using the publish/subscribe protocol (the subscriber side), depayload it (disabling the incoming timestamps since these are uninteresting here), and play
+ *
+ * Note in the example above that the subscriber pipeline can be started more than once, on different threads, processes, or hosts (see the nanomsg documentation for details about publish/subscribe)
+ *
+ * </refsect2>
+*/
 
 
 
@@ -255,9 +282,11 @@ static void gst_nanomsgsrc_set_property(GObject *object, guint prop_id, GValue c
 	{
 		case PROP_URI:
 		{
+			gchar const *new_uri;
+
 			LOCK_SRC_MUTEX(nanomsgsrc);
 
-			gchar const *new_uri = g_value_get_string(value);
+			new_uri = g_value_get_string(value);
 			if (new_uri != NULL)
 			{
 				if (nanomsgsrc->uri != DEFAULT_URI)
@@ -302,12 +331,14 @@ static void gst_nanomsgsrc_set_property(GObject *object, guint prop_id, GValue c
 
 		case PROP_SUBSCRIPTION_TOPIC:
 		{
+			gchar const *new_topic;
+
 			LOCK_SRC_MUTEX(nanomsgsrc);
 
 			if (nanomsgsrc->subscription_topic != DEFAULT_SUBSCRIPTION_TOPIC)
 				g_free(nanomsgsrc->subscription_topic);
 
-			gchar const *new_topic = g_value_get_string(value);
+			new_topic = g_value_get_string(value);
 			if (new_topic != NULL)
 			{
 				nanomsgsrc->subscription_topic = g_strdup(new_topic);

@@ -19,7 +19,10 @@
 
 
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
+
 #include "gstnanomsg.h"
 #include "gstnanomsgsrc.h"
 #include "gstnanomsgsink.h"
@@ -48,8 +51,8 @@ guint const gstnanomsg_num_supported_protocols = (sizeof(gstnanomsg_supported_pr
 static gboolean plugin_init(GstPlugin *plugin)
 {
 	gboolean ret = TRUE;
-	ret = ret && gst_element_register(plugin, "nanomsgsrc", GST_RANK_PRIMARY + 1, gst_nanomsgsrc_get_type());
-	ret = ret && gst_element_register(plugin, "nanomsgsink", GST_RANK_PRIMARY + 1, gst_nanomsgsink_get_type());
+	ret = ret && gst_element_register(plugin, "nanomsgsrc", GST_RANK_PRIMARY, gst_nanomsgsrc_get_type());
+	ret = ret && gst_element_register(plugin, "nanomsgsink", GST_RANK_PRIMARY, gst_nanomsgsink_get_type());
 	return ret;
 }
 
