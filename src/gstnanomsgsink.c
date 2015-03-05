@@ -26,17 +26,17 @@
  * <refsect2>
  * <title>Examples</title>
  * |[
- * gst-launch-1.0 audiotestsrc ! nanomsgsink uri=nmsgipc:///tmp/pipeline.ipc
+ * gst-launch-1.0 audiotestsrc ! nanomsgsink uri=nnipc:///tmp/pipeline.ipc
  * ]| Send data to a nanomsg sink using an IPC connection
  * |[
- * gst-launch-1.0 nanomsgsrc uri=nmsgipc:///tmp/pipeline.ipc ! fakesink
+ * gst-launch-1.0 nanomsgsrc uri=nnipc:///tmp/pipeline.ipc ! fakesink
  * ]| Receive data from the pipeline above
  *
  * |[
- * gst-launch-1.0 audiotestsrc ! rtpgstpay ! nanomsgsink uri=nmsgtcp:///192.168.0.1:54001 protocol=pub
+ * gst-launch-1.0 audiotestsrc ! rtpgstpay ! nanomsgsink uri=nntcp:///192.168.0.1:54001 protocol=pub
  * ]| Send audio stream packets enveloped in the GST RTP payloader and transmit it over TCP, using the publish/subscribe protocol (the publisher side)
  * |[
- * gst-launch-1.0 nanomsgsrc do-timestamp=false uri=nmsgipc:///tmp/192.168.0.1:54001 protocol=sub ! "application/x-rtp, encoding-name=X-GST" ! rtpgstdepay ! autoaudiosink
+ * gst-launch-1.0 nanomsgsrc do-timestamp=false uri=nnipc:///tmp/192.168.0.1:54001 protocol=sub ! "application/x-rtp, encoding-name=X-GST" ! rtpgstdepay ! autoaudiosink
  * ]| Receive data from the pipeline above using the publish/subscribe protocol (the subscriber side), depayload it (disabling the incoming timestamps since these are uninteresting here), and play
  *
  * Note in the example above that the subscriber pipeline can be started more than once, on different threads, processes, or hosts (see the nanomsg documentation for details about publish/subscribe)

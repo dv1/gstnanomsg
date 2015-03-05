@@ -66,6 +66,6 @@ The source element can work as either a PUB/SUB subscriber, or a PIPELINE pull e
 Additional notes
 ----------------
 
-* The source and sink elements accept URIs which start with `nmsg`. Example: `nmsgtcp://127.0.0.1:54000`. This prefix has been added to make sure there are no collisions with other URI handling elements. Internally, the prefix is skipped before the URI is passed to nanomsg.
+* The source and sink elements accept URIs which start with `nn`. Example: `nntcp://127.0.0.1:54000`. This prefix has been added to make sure there are no collisions with other URI handling elements. Internally, the prefix is skipped before the URI is passed to nanomsg.
 * `nanomsgsrc` has a `timeout` property. If this property is nonzero, it specifies the number of milliseconds the source should wait before posting a timeout message to the GStreamer pipeline bus. This is useful for reporting that no data has arrived yet, for example.
 * `nanomsgsrc` also has a `subscription-topic` property. This sets the subscription topic of a PUB/SUB subscriber, and is only used if the source's protocol is set to `sub`. Refer to the [nanomsg pub/sub documentation](http://nanomsg.org/v0.5/nn_pubsub.7.html) for details about topics.

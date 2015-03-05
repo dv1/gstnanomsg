@@ -30,7 +30,7 @@
 
 /* to GStreamer, a protocol schema always starts with the
  * prefix defined by PROTOCOL_PREFIX
- * example: nmsgtcp://127.0.0.1:56000
+ * example: nntcp://127.0.0.1:56000
  * (this avoids conflicts with other URI handlers)
  * the prefix is removed before it is passed to nanomsg
  * the protocol list always ends with NULL, to fulfill the requirements
