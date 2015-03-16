@@ -60,6 +60,9 @@ struct _GstNanomsgSrc
 	/* Whether or not to only use IPv4 (and no IPv6) addresses */
 	gboolean ipv4only;
 
+	/* size of the SP socket's receive buffer, in bytes */
+	int rcvbufsize;
+
 	/* the subscription topic to use with the PUBSUB protocol; unused with others */
 	gchar *subscription_topic;
 

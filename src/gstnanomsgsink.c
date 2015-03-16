@@ -68,13 +68,15 @@ enum
 	PROP_0,
 	PROP_URI,
 	PROP_PROTOCOL,
-	PROP_IPV4ONLY
+	PROP_IPV4ONLY,
+	PROP_SNDBUFSIZE
 };
 
 
 #define DEFAULT_URI NULL
 #define DEFAULT_PROTOCOL NN_PUSH
 #define DEFAULT_IPV4ONLY TRUE
+#define DEFAULT_SNDBUFSIZE (128 * 1024)
 
 
 #define LOCK_SINK_MUTEX(OBJ)    g_mutex_lock(&(((GstNanomsgSink*)(OBJ))->mutex))
@@ -115,6 +117,8 @@ static GstURIType gst_nanomsgsink_uri_get_type(GType type);
 static const gchar* const * gst_nanomsgsink_uri_get_protocols(GType type);
 static gchar* gst_nanomsgsink_uri_get_uri(GstURIHandler *handler);
 static gboolean gst_nanomsgsink_uri_set_uri(GstURIHandler *handler, const gchar *uri, GError **error);
+
+static gboolean gst_nanomsgsink_update_sndbufsize(GstNanomsgSink *nanomsgsink, int new_size);
 
 
 
@@ -201,6 +205,18 @@ static void gst_nanomsgsink_class_init(GstNanomsgSinkClass *klass)
 	                G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS
 	        )
 	);
+	g_object_class_install_property(
+	        object_class,
+	        PROP_SNDBUFSIZE,
+	        g_param_spec_int(
+	                "sndbufsize",
+	                "Send buffer size",
+	                "Size of the send buffer, in bytes",
+	                1, G_MAXINT,
+			DEFAULT_SNDBUFSIZE,
+	                G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS
+	        )
+	);
 
 	gst_element_class_set_static_metadata(
 		element_class,
@@ -217,6 +233,7 @@ static void gst_nanomsgsink_init(GstNanomsgSink *nanomsgsink)
 	nanomsgsink->uri = NULL;
 	nanomsgsink->protocol = DEFAULT_PROTOCOL;
 	nanomsgsink->ipv4only = DEFAULT_IPV4ONLY;
+	nanomsgsink->sndbufsize = DEFAULT_SNDBUFSIZE;
 
 	nanomsgsink->main_fd = -1;
 	nanomsgsink->watch_fd = -1;
@@ -284,6 +301,15 @@ static void gst_nanomsgsink_set_property(GObject *object, guint prop_id, GValue 
 			break;
 		}
 
+		case PROP_SNDBUFSIZE:
+		{
+			LOCK_SINK_MUTEX(nanomsgsink);
+			gst_nanomsgsink_update_sndbufsize(nanomsgsink, g_value_get_int(value));
+			UNLOCK_SINK_MUTEX(nanomsgsink);
+
+			break;
+		}
+
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
 			break;
@@ -311,6 +337,12 @@ static void gst_nanomsgsink_get_property(GObject *object, guint prop_id, GValue 
 		case PROP_IPV4ONLY:
 			LOCK_SINK_MUTEX(nanomsgsink);
 			g_value_set_boolean(value, nanomsgsink->ipv4only);
+			UNLOCK_SINK_MUTEX(nanomsgsink);
+			break;
+
+		case PROP_SNDBUFSIZE:
+			LOCK_SINK_MUTEX(nanomsgsink);
+			g_value_set_int(value, nanomsgsink->sndbufsize);
 			UNLOCK_SINK_MUTEX(nanomsgsink);
 			break;
 
@@ -579,6 +611,9 @@ static gboolean gst_nanomsgsink_init_sockets(GstNanomsgSink *nanomsgsink)
 
 	/* Misc settings */
 
+	if (G_UNLIKELY(!gst_nanomsgsink_update_sndbufsize(nanomsgsink, nanomsgsink->sndbufsize)))
+		goto failure;
+
 	{
 		int ipv4only = nanomsgsink->ipv4only ? 1 : 0;
 		if (G_UNLIKELY(nn_setsockopt(nanomsgsink->main_fd, NN_SOL_SOCKET, NN_IPV4ONLY, (char const*)&(ipv4only), sizeof(ipv4only))) < 0)
@@ -674,4 +709,21 @@ static gboolean gst_nanomsgsink_uri_set_uri(GstURIHandler *handler, const gchar 
 	UNLOCK_SINK_MUTEX(nanomsgsink);
 
 	return TRUE;
+}
+
+
+static gboolean gst_nanomsgsink_update_sndbufsize(GstNanomsgSink *nanomsgsink, int new_size)
+{
+	nanomsgsink->sndbufsize = new_size;
+
+	if (nanomsgsink->main_fd < 0)
+		return TRUE;
+
+	if (G_UNLIKELY(nn_setsockopt(nanomsgsink->main_fd, NN_SOL_SOCKET, NN_SNDBUF, &new_size, sizeof(new_size)) == -1))
+	{
+		GST_ERROR_OBJECT(nanomsgsink, "error while setting new send buffer size: %s", strerror(errno));
+		return FALSE;
+	}
+	else
+		return TRUE;
 }

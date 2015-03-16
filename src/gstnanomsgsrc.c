@@ -70,6 +70,7 @@ enum
 	PROP_TIMEOUT,
 	PROP_PROTOCOL,
 	PROP_IPV4ONLY,
+	PROP_RCVBUFSIZE,
 	PROP_SUBSCRIPTION_TOPIC,
 	PROP_IS_LIVE
 };
@@ -79,6 +80,7 @@ enum
 #define DEFAULT_TIMEOUT 0
 #define DEFAULT_PROTOCOL NN_PULL
 #define DEFAULT_IPV4ONLY TRUE
+#define DEFAULT_RCVBUFSIZE (128 * 1024)
 #define DEFAULT_SUBSCRIPTION_TOPIC NULL
 
 
@@ -120,6 +122,8 @@ static GstURIType gst_nanomsgsrc_uri_get_type(GType type);
 static const gchar* const * gst_nanomsgsrc_uri_get_protocols(GType type);
 static gchar* gst_nanomsgsrc_uri_get_uri(GstURIHandler *handler);
 static gboolean gst_nanomsgsrc_uri_set_uri(GstURIHandler *handler, const gchar *uri, GError **error);
+
+static gboolean gst_nanomsgsrc_update_rcvbufsize(GstNanomsgSrc *nanomsgsrc, int new_size);
 
 
 
@@ -221,6 +225,18 @@ static void gst_nanomsgsrc_class_init(GstNanomsgSrcClass *klass)
 	);
 	g_object_class_install_property(
 	        object_class,
+	        PROP_RCVBUFSIZE,
+	        g_param_spec_int(
+	                "rcvbufsize",
+	                "Receive buffer size",
+	                "Size of the receive buffer, in bytes",
+	                1, G_MAXINT,
+			DEFAULT_RCVBUFSIZE,
+	                G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS
+	        )
+	);
+	g_object_class_install_property(
+	        object_class,
 	        PROP_SUBSCRIPTION_TOPIC,
 	        g_param_spec_string(
 	                "subscription-topic",
@@ -258,6 +274,7 @@ static void gst_nanomsgsrc_init(GstNanomsgSrc *nanomsgsrc)
 	nanomsgsrc->timeout = DEFAULT_TIMEOUT;
 	nanomsgsrc->protocol = DEFAULT_PROTOCOL;
 	nanomsgsrc->ipv4only = DEFAULT_IPV4ONLY;
+	nanomsgsrc->rcvbufsize = DEFAULT_RCVBUFSIZE;
 	nanomsgsrc->subscription_topic = DEFAULT_SUBSCRIPTION_TOPIC;
 
 	nanomsgsrc->main_fd = -1;
@@ -340,6 +357,15 @@ static void gst_nanomsgsrc_set_property(GObject *object, guint prop_id, GValue c
 			break;
 		}
 
+		case PROP_RCVBUFSIZE:
+		{
+			LOCK_SRC_MUTEX(nanomsgsrc);
+			gst_nanomsgsrc_update_rcvbufsize(nanomsgsrc, g_value_get_int(value));
+			UNLOCK_SRC_MUTEX(nanomsgsrc);
+
+			break;
+		}
+
 		case PROP_SUBSCRIPTION_TOPIC:
 		{
 			gchar const *new_topic;
@@ -403,6 +429,12 @@ static void gst_nanomsgsrc_get_property(GObject *object, guint prop_id, GValue *
 		case PROP_IPV4ONLY:
 			LOCK_SRC_MUTEX(nanomsgsrc);
 			g_value_set_boolean(value, nanomsgsrc->ipv4only);
+			UNLOCK_SRC_MUTEX(nanomsgsrc);
+			break;
+
+		case PROP_RCVBUFSIZE:
+			LOCK_SRC_MUTEX(nanomsgsrc);
+			g_value_set_int(value, nanomsgsrc->rcvbufsize);
 			UNLOCK_SRC_MUTEX(nanomsgsrc);
 			break;
 
@@ -723,6 +755,9 @@ static gboolean gst_nanomsgsrc_init_sockets(GstNanomsgSrc *nanomsgsrc)
 
 	/* Misc settings */
 
+	if (G_UNLIKELY(!gst_nanomsgsrc_update_rcvbufsize(nanomsgsrc, nanomsgsrc->rcvbufsize)))
+		goto failure;
+
 	{
 		int ipv4only = nanomsgsrc->ipv4only ? 1 : 0;
 		if (G_UNLIKELY(nn_setsockopt(nanomsgsrc->main_fd, NN_SOL_SOCKET, NN_IPV4ONLY, (char const*)&(ipv4only), sizeof(ipv4only))) < 0)
@@ -819,4 +854,21 @@ static gboolean gst_nanomsgsrc_uri_set_uri(GstURIHandler *handler, const gchar *
 	UNLOCK_SRC_MUTEX(nanomsgsrc);
 
 	return TRUE;
+}
+
+
+static gboolean gst_nanomsgsrc_update_rcvbufsize(GstNanomsgSrc *nanomsgsrc, int new_size)
+{
+	nanomsgsrc->rcvbufsize = new_size;
+
+	if (nanomsgsrc->main_fd < 0)
+		return TRUE;
+
+	if (G_UNLIKELY(nn_setsockopt(nanomsgsrc->main_fd, NN_SOL_SOCKET, NN_RCVBUF, &new_size, sizeof(new_size)) == -1))
+	{
+		GST_ERROR_OBJECT(nanomsgsrc, "error while setting new receive buffer size: %s", strerror(errno));
+		return FALSE;
+	}
+	else
+		return TRUE;
 }
