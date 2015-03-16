@@ -70,7 +70,8 @@ enum
 	PROP_TIMEOUT,
 	PROP_PROTOCOL,
 	PROP_IPV4ONLY,
-	PROP_SUBSCRIPTION_TOPIC
+	PROP_SUBSCRIPTION_TOPIC,
+	PROP_IS_LIVE
 };
 
 
@@ -229,6 +230,17 @@ static void gst_nanomsgsrc_class_init(GstNanomsgSrcClass *klass)
 	                G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS
 	        )
 	);
+	g_object_class_install_property(
+		object_class,
+		PROP_IS_LIVE,
+		g_param_spec_boolean(
+			"is-live",
+			"is-live",
+			"Act like a live source",
+			FALSE,
+			G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS
+		)
+	);
 
 	gst_element_class_set_static_metadata(
 		element_class,
@@ -255,7 +267,6 @@ static void gst_nanomsgsrc_init(GstNanomsgSrc *nanomsgsrc)
 	nanomsgsrc->flushing = FALSE;
 	g_mutex_init(&(nanomsgsrc->mutex));
 
-	gst_base_src_set_live(GST_BASE_SRC(nanomsgsrc), TRUE);
 	gst_base_src_set_format(GST_BASE_SRC(nanomsgsrc), GST_FORMAT_TIME);
 	gst_base_src_set_do_timestamp(GST_BASE_SRC(nanomsgsrc), TRUE);
 }
@@ -355,6 +366,10 @@ static void gst_nanomsgsrc_set_property(GObject *object, guint prop_id, GValue c
 			break;
 		}
 
+		case PROP_IS_LIVE:
+			gst_base_src_set_live(GST_BASE_SRC(object), g_value_get_boolean(value));
+			break;
+
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
 			break;
@@ -395,6 +410,10 @@ static void gst_nanomsgsrc_get_property(GObject *object, guint prop_id, GValue *
 			LOCK_SRC_MUTEX(nanomsgsrc);
 			g_value_set_string(value, nanomsgsrc->subscription_topic);
 			UNLOCK_SRC_MUTEX(nanomsgsrc);
+			break;
+
+		case PROP_IS_LIVE:
+			g_value_set_boolean(value, gst_base_src_is_live(GST_BASE_SRC(object)));
 			break;
 
 		default:
