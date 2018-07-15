@@ -81,7 +81,9 @@ def configure(conf):
 
 	# test for nanomsg
 
-	conf.check_cfg(package = 'libnanomsg', uselib_store = 'NANOMSG', args = '--cflags --libs', mandatory = 1)
+	if not conf.check_cfg(package = 'nanomsg', uselib_store = 'NANOMSG', args = '--cflags --libs', mandatory = 0):
+		if not conf.check_cfg(package = 'libnanomsg', uselib_store = 'NANOMSG', args = '--cflags --libs', mandatory = 0):
+			conf.fatal('Neither nanomsg nor libnanomsg pkg-config file found')
 
 
 	# test for GStreamer libraries
