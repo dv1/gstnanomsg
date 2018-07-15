@@ -71,6 +71,7 @@ enum
 	PROP_PROTOCOL,
 	PROP_IPV4ONLY,
 	PROP_RCVBUFSIZE,
+	PROP_RCVMAXSIZE,
 	PROP_SUBSCRIPTION_TOPIC,
 	PROP_IS_LIVE
 };
@@ -81,6 +82,7 @@ enum
 #define DEFAULT_PROTOCOL NN_PULL
 #define DEFAULT_IPV4ONLY TRUE
 #define DEFAULT_RCVBUFSIZE (128 * 1024)
+#define DEFAULT_RCVMAXSIZE (1024 * 1024)
 #define DEFAULT_SUBSCRIPTION_TOPIC NULL
 
 
@@ -124,6 +126,7 @@ static gchar* gst_nanomsgsrc_uri_get_uri(GstURIHandler *handler);
 static gboolean gst_nanomsgsrc_uri_set_uri(GstURIHandler *handler, const gchar *uri, GError **error);
 
 static gboolean gst_nanomsgsrc_update_rcvbufsize(GstNanomsgSrc *nanomsgsrc, int new_size);
+static gboolean gst_nanomsgsrc_update_rcvmaxsize(GstNanomsgSrc *nanomsgsrc, int new_size);
 
 
 
@@ -237,6 +240,18 @@ static void gst_nanomsgsrc_class_init(GstNanomsgSrcClass *klass)
 	);
 	g_object_class_install_property(
 	        object_class,
+	        PROP_RCVMAXSIZE,
+	        g_param_spec_int(
+	                "rcvmaxsize",
+	                "Max reception size",
+	                "Maximum message size that can be received, in bytes (0 = no maximum; received size is limited only by available addressable memory)",
+	                0, G_MAXINT,
+			DEFAULT_RCVBUFSIZE,
+	                G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS
+	        )
+	);
+	g_object_class_install_property(
+	        object_class,
 	        PROP_SUBSCRIPTION_TOPIC,
 	        g_param_spec_string(
 	                "subscription-topic",
@@ -275,6 +290,7 @@ static void gst_nanomsgsrc_init(GstNanomsgSrc *nanomsgsrc)
 	nanomsgsrc->protocol = DEFAULT_PROTOCOL;
 	nanomsgsrc->ipv4only = DEFAULT_IPV4ONLY;
 	nanomsgsrc->rcvbufsize = DEFAULT_RCVBUFSIZE;
+	nanomsgsrc->rcvmaxsize = DEFAULT_RCVMAXSIZE;
 	nanomsgsrc->subscription_topic = DEFAULT_SUBSCRIPTION_TOPIC;
 
 	nanomsgsrc->main_fd = -1;
@@ -366,6 +382,15 @@ static void gst_nanomsgsrc_set_property(GObject *object, guint prop_id, GValue c
 			break;
 		}
 
+		case PROP_RCVMAXSIZE:
+		{
+			LOCK_SRC_MUTEX(nanomsgsrc);
+			gst_nanomsgsrc_update_rcvmaxsize(nanomsgsrc, g_value_get_int(value));
+			UNLOCK_SRC_MUTEX(nanomsgsrc);
+
+			break;
+		}
+
 		case PROP_SUBSCRIPTION_TOPIC:
 		{
 			gchar const *new_topic;
@@ -435,6 +460,12 @@ static void gst_nanomsgsrc_get_property(GObject *object, guint prop_id, GValue *
 		case PROP_RCVBUFSIZE:
 			LOCK_SRC_MUTEX(nanomsgsrc);
 			g_value_set_int(value, nanomsgsrc->rcvbufsize);
+			UNLOCK_SRC_MUTEX(nanomsgsrc);
+			break;
+
+		case PROP_RCVMAXSIZE:
+			LOCK_SRC_MUTEX(nanomsgsrc);
+			g_value_set_int(value, nanomsgsrc->rcvmaxsize);
 			UNLOCK_SRC_MUTEX(nanomsgsrc);
 			break;
 
@@ -758,6 +789,9 @@ static gboolean gst_nanomsgsrc_init_sockets(GstNanomsgSrc *nanomsgsrc)
 	if (G_UNLIKELY(!gst_nanomsgsrc_update_rcvbufsize(nanomsgsrc, nanomsgsrc->rcvbufsize)))
 		goto failure;
 
+	if (G_UNLIKELY(!gst_nanomsgsrc_update_rcvmaxsize(nanomsgsrc, nanomsgsrc->rcvmaxsize)))
+		goto failure;
+
 	{
 		int ipv4only = nanomsgsrc->ipv4only ? 1 : 0;
 		if (G_UNLIKELY(nn_setsockopt(nanomsgsrc->main_fd, NN_SOL_SOCKET, NN_IPV4ONLY, (char const*)&(ipv4only), sizeof(ipv4only))) < 0)
@@ -867,6 +901,29 @@ static gboolean gst_nanomsgsrc_update_rcvbufsize(GstNanomsgSrc *nanomsgsrc, int 
 	if (G_UNLIKELY(nn_setsockopt(nanomsgsrc->main_fd, NN_SOL_SOCKET, NN_RCVBUF, &new_size, sizeof(new_size)) == -1))
 	{
 		GST_ERROR_OBJECT(nanomsgsrc, "error while setting new receive buffer size: %s", strerror(errno));
+		return FALSE;
+	}
+	else
+		return TRUE;
+}
+
+
+static gboolean gst_nanomsgsrc_update_rcvmaxsize(GstNanomsgSrc *nanomsgsrc, int new_size)
+{
+	nanomsgsrc->rcvmaxsize = new_size;
+
+	if (nanomsgsrc->main_fd < 0)
+		return TRUE;
+
+	/* Max size -1 means "no limit". But a max size of 0 makes no sense, so we
+	 * interpret 0 as "no limit". For this reason, we have to replace a 0 with
+	 * -1 to make sure nanomsg lifts the size limit. */
+	if (new_size == 0)
+		new_size = -1;
+
+	if (G_UNLIKELY(nn_setsockopt(nanomsgsrc->main_fd, NN_SOL_SOCKET, NN_RCVMAXSIZE, &new_size, sizeof(new_size)) == -1))
+	{
+		GST_ERROR_OBJECT(nanomsgsrc, "error while setting new max receive size: %s", strerror(errno));
 		return FALSE;
 	}
 	else

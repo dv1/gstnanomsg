@@ -63,6 +63,9 @@ struct _GstNanomsgSrc
 	/* size of the SP socket's receive buffer, in bytes */
 	int rcvbufsize;
 
+	/* maximum message size that can be received, in bytes */
+	int rcvmaxsize;
+
 	/* the subscription topic to use with the PUBSUB protocol; unused with others */
 	gchar *subscription_topic;
 
